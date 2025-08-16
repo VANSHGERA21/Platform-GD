@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Job Interview Practice Platform</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        const { Users, MessageCircle, User, Clock, CheckCircle, Play, Pause, RotateCcw, Send, Mic, MicOff, Plus, LogIn } = lucide;
+
+        const JobInterviewPlatform = () => {
+          const [currentRound, setCurrentRound] = useState('dashboard');
+          const [userName, setUserName] = useState('');
+          const [isLoggedIn, setIsLoggedIn] = useState(false);
+          const [roomCode, setRoomCode] = useState('');
+          
+          // Preliminary Screening State
+          const [screeningQuestions, setScreeningQuestions] = useState([]);
+          const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+          const [screeningAnswers, setScreeningAnswers] = useState({});
+          const [screeningTimer, setScreeningTimer] = useState(300);
+          const [screeningActive, setScreeningActive] = useState(false);
+          
+          // Group Discussion State
+          const [participants, setParticipants] = useState([]);
+          const [messages, setMessages] = useState([]);
+          const [newMessage, setNewMessage] = useState('');
+          const [discussionTimer, setDiscussionTimer] = useState(1200);
+          const [discussionActive, setDiscussionActive] = useState(false);
+          const [currentTopic, setCurrentTopic] = useState('');
+          const [isRecording, setIsRecording] = useState(false);
+          const [isRoomHost, setIsRoomHost] = useState(false);
+          const [activeRooms, setActiveRooms] = useState([]);
+          const [showRoomCreation, setShowRoomCreation] = useState(false);
+          const [newRoomSettings, setNewRoomSettings] = useState({
+            name: '',
+            maxParticipants: 6,
+            duration: 20,
+            topic: '',
+            isPrivate: false
+          });
+          
+          // Personal Interview State
+          const [interviewQuestions, setInterviewQuestions] = useState([]);
+          const [currentInterviewQuestion, setCurrentInterviewQuestion] = useState(0);
+          const [interviewAnswers, setInterviewAnswers] = useState({});
+          const [aiThinking, setAiThinking] = useState(false);
+          const [interviewTimer, setInterviewTimer] = useState(1800);
+          
+          const timerRef = useRef(null);
+
+          // Sample questions
+          const preliminaryQuestions = [
+            "Tell us about yourself and your professional background.",
+            "Why are you interested in this position?",
+            "What are your key technical skills?",
+            "Where do you see yourself in 5 years?",
+            "What is your greatest strength and weakness?"
+          ];
+
+          const personalInterviewQuestions = [
+            "Describe a challenging project you worked on recently.",
+            "How do you handle working under pressure?",
+            "Tell me about a time you had to learn something new quickly.",
+            "How do you prioritize your work when you have multiple deadlines?",
+            "Describe a situation where you had to work with a difficult team member."
+          ];
+
+          const discussionTopics = [
+            "The impact of artificial intelligence on job markets",
+            "Remote work vs office work: Which is more productive?",
+            "The role of social media in professional networking",
+            "Climate change and corporate responsibility",
+            "The future of education in the digital age"
+          ];
+
+          useEffect(() => {
+            if (screeningActive || discussionActive || (currentRound === 'interview' && interviewTimer > 0)) {
+              timerRef.current = setInterval(() => {
+                if (screeningActive) {
+                  setScreeningTimer(prev => prev > 0 ? prev - 1 : 0);
+                } else if (discussionActive) {
+                  setDiscussionTimer(prev => prev > 0 ? prev - 1 : 0);
+                } else if (currentRound === 'interview') {
+                  setInterviewTimer(prev => prev > 0 ? prev - 1 : 0);
+                }
+              }, 1000);
+            } else {
+              clearInterval(timerRef.current);
+            }
+
+            return () => clearInterval(timerRef.current);
+          }, [screeningActive, discussionActive, currentRound, interviewTimer]);
+
+          const formatTime = (seconds) => {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+          };
+
+          const handleLogin = () => {
+            if (userName.trim()) {
+              setIsLoggedIn(true);
+            }
+          };
+
+          const startScreening = () => {
+            setScreeningQuestions(preliminaryQuestions);
+            setCurrentQuestionIndex(0);
+            setScreeningActive(true);
+            setCurrentRound('screening');
+            setScreeningTimer(300);
+          };
+
+          const handleScreeningAnswer = (answer) => {
+            const newAnswers = { ...screeningAnswers, [currentQuestionIndex]: answer };
+            setScreeningAnswers(newAnswers);
+            
+            if (currentQuestionIndex < screeningQuestions.length - 1) {
+              setCurrentQuestionIndex(currentQuestionIndex + 1);
+            } else {
+              setScreeningActive(false);
+              setCurrentRound('dashboard');
+            }
+          };
+
+          const generateRoomCode = () => {
+            const prefix = 'GD';
+            const randomNum = Math.floor(Math.random() * 9000) + 1000;
+            return `${prefix}${randomNum}`;
+          };
+
+          const createRoom = () => {
+            const newRoomCode = generateRoomCode();
+            const newRoom = {
+              code: newRoomCode,
+              name: newRoomSettings.name || `${userName}'s Room`,
+              host: userName,
+              participants: [{
+                id: Date.now(),
+                name: userName,
+                joinTime: new Date().toLocaleTimeString(),
+                isHost: true
+              }],
+              maxParticipants: newRoomSettings.maxParticipants,
+              duration: newRoomSettings.duration * 60,
+              topic: newRoomSettings.topic || discussionTopics[Math.floor(Math.random() * discussionTopics.length)],
+              isPrivate: newRoomSettings.isPrivate,
+              createdAt: new Date().toLocaleTimeString(),
+              status: 'waiting'
+            };
+            
+            setActiveRooms([...activeRooms, newRoom]);
+            setRoomCode(newRoomCode);
+            setCurrentTopic(newRoom.topic);
+            setParticipants(newRoom.participants);
+            setIsRoomHost(true);
+            setDiscussionTimer(newRoom.duration);
+            setCurrentRound('discussion');
+            setShowRoomCreation(false);
+            
+            setNewRoomSettings({
+              name: '',
+              maxParticipants: 6,
+              duration: 20,
+              topic: '',
+              isPrivate: false
+            });
+          };
+
+          const joinExistingRoom = () => {
+            if (!roomCode.trim()) {
+              alert('Please enter a room code!');
+              return;
+            }
+            
+            const room = activeRooms.find(r => r.code === roomCode.toUpperCase());
+            if (room && room.participants.length < room.maxParticipants) {
+              const newParticipant = {
+                id: Date.now(),
+                name: userName,
+                joinTime: new Date().toLocaleTimeString(),
+                isHost: false
+              };
+              
+              const updatedRooms = activeRooms.map(r => 
+                r.code === roomCode.toUpperCase() 
+                  ? { ...r, participants: [...r.participants, newParticipant] }
+                  : r
+              );
+              setActiveRooms(updatedRooms);
+              
+              const updatedRoom = updatedRooms.find(r => r.code === roomCode.toUpperCase());
+              if (updatedRoom) {
+                setParticipants(updatedRoom.participants);
+                setCurrentTopic(updatedRoom.topic);
+                setDiscussionTimer(updatedRoom.duration);
+                setIsRoomHost(false);
+                setCurrentRound('discussion');
+              }
+            } else if (room && room.participants.length >= room.maxParticipants) {
+              alert('Room is full! Please try another room.');
+            } else {
+              alert('Room not found! Please check the room code or create a new room.');
+            }
+          };
+
+          const startDiscussion = () => {
+            setDiscussionActive(true);
+            setDiscussionTimer(1200);
+          };
+
+          const sendMessage = () => {
+            if (newMessage.trim()) {
+              const message = {
+                id: Date.now(),
+                sender: userName,
+                text: newMessage,
+                timestamp: new Date().toLocaleTimeString()
+              };
+              setMessages([...messages, message]);
+              setNewMessage('');
+            }
+          };
+
+          const startPersonalInterview = () => {
+            setInterviewQuestions(personalInterviewQuestions);
+            setCurrentInterviewQuestion(0);
+            setCurrentRound('interview');
+            setInterviewTimer(1800);
+          };
+
+          const handleInterviewAnswer = (answer) => {
+            setAiThinking(true);
+            const newAnswers = { ...interviewAnswers, [currentInterviewQuestion]: answer };
+            setInterviewAnswers(newAnswers);
+            
+            setTimeout(() => {
+              setAiThinking(false);
+              if (currentInterviewQuestion < interviewQuestions.length - 1) {
+                setCurrentInterviewQuestion(currentInterviewQuestion + 1);
+              } else {
+                setCurrentRound('results');
+              }
+            }, 2000);
+          };
+
+          const resetPlatform = () => {
+            setCurrentRound('dashboard');
+            setScreeningAnswers({});
+            setInterviewAnswers({});
+            setMessages([]);
+            setParticipants([]);
+            setCurrentQuestionIndex(0);
+            setCurrentInterviewQuestion(0);
+          };
+
+          const openRoomModal = () => {
+            setShowRoomCreation(true);
+          };
+
+          const closeRoomModal = () => {
+            setShowRoomCreation(false);
+          };
+
+          if (!isLoggedIn) {
+            return React.createElement(
+              'div',
+              { className: 'min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center' },
+              React.createElement(
+                'div',
+                { className: 'bg-white rounded-xl shadow-2xl p-8 w-full max-w-md' },
+                React.createElement(
+                  'div',
+                  { className: 'text-center mb-8' },
+                  React.createElement('h1', { className: 'text-3xl font-bold text-gray-800 mb-2' }, 'Job Interview Platform'),
+                  React.createElement('p', { className: 'text-gray-600' }, 'Practice your interview skills with AI')
+                ),
+                React.createElement(
+                  'div',
+                  { className: 'space-y-4' },
+                  React.createElement('input', {
+                    type: 'text',
+                    placeholder: 'Enter your name',
+                    value: userName,
+                    onChange: (e) => setUserName(e.target.value),
+                    className: 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                    onKeyPress: (e) => e.key === 'Enter' && handleLogin()
+                  }),
+                  React.createElement(
+                    'button',
+                    {
+                      onClick: handleLogin,
+                      className: 'w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors'
+                    },
+                    'Get Started'
+                  )
+                )
+              )
+            );
+          }
+
+          if (currentRound === 'dashboard') {
+            return React.createElement(
+              'div',
+              { className: 'min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6' },
+              React.createElement(
+                'div',
+                { className: 'max-w-6xl mx-auto' },
+                React.createElement(
+                  'div',
+                  { className: 'bg-white rounded-xl shadow-xl p-8 mb-8' },
+                  React.createElement('h1', { className: 'text-3xl font-bold text-gray-800 mb-2' }, `Welcome, ${userName}!`),
+                  React.createElement('p', { className: 'text-gray-600' }, 'Choose your interview round to practice')
+                ),
+                React.createElement(
+                  'div',
+                  { className: 'grid md:grid-cols-3 gap-6' },
+                  // Preliminary Screening Card
+                  React.createElement(
+                    'div',
+                    { className: 'bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow' },
+                    React.createElement(
+                      'div',
+                      { className: 'flex items-center mb-4' },
+                      React.createElement(CheckCircle, { className: 'h-8 w-8 text-green-500 mr-3' }),
+                      React.createElement('h2', { className: 'text-xl font-bold text-gray-800' }, 'Preliminary Screening')
+                    ),
+                    React.createElement('p', { className: 'text-gray-600 mb-6' }, 'AI-powered screening with basic questions (5 minutes)'),
+                    React.createElement(
+                      'button',
+                      {
+                        onClick: startScreening,
+                        className: 'w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors'
+                      },
+                      'Start Screening'
+                    )
+                  ),
+                  // Group Discussion Card
+                  React.createElement(
+                    'div',
+                    { className: 'bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow' },
+                    React.createElement(
+                      'div',
+                      { className: 'flex items-center mb-4' },
+                      React.createElement(Users, { className: 'h-8 w-8 text-blue-500 mr-3' }),
+                      React.createElement('h2', { className: 'text-xl font-bold text-gray-800' }, 'Group Discussion')
+                    ),
+                    React.createElement('p', { className: 'text-gray-600 mb-4' }, 'Join or create multiplayer discussions (20 minutes)'),
+                    React.createElement(
+                      'div',
+                      { className: 'space-y-3' },
+                      React.createElement(
+                        'button',
+                        {
+                          type: 'button',
+                          onClick: openRoomModal,
+                          className: 'w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center font-medium'
+                        },
+                        React.createElement(Plus, { className: 'h-5 w-5 mr-2' }),
+                        'Create New Room'
+                      ),
+                      React.createElement(
+                        'div',
+                        { className: 'relative' },
+                        React.createElement(
+                          'div',
+                          { className: 'absolute inset-0 flex items-center' },
+                          React.createElement('div', { className: 'w-full border-t border-gray-300' })
+                        ),
+                        React.createElement(
+                          'div',
+                          { className: 'relative flex justify-center text-sm' },
+                          React.createElement('span', { className: 'px-2 bg-white text-gray-500' }, 'OR')
+                        )
+                      ),
+                      React.createElement(
+                        'div',
+                        { className: 'space-y-2' },
+                        React.createElement('input', {
+                          type: 'text',
+                          placeholder: 'Enter Room Code (e.g., GD1234)',
+                          value: roomCode,
+                          onChange: (e) => setRoomCode(e.target.value.toUpperCase()),
+                          className: 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                        }),
+                        React.createElement(
+                          'button',
+                          {
+                            type: 'button',
+                            onClick: joinExistingRoom,
+                            disabled: !roomCode.trim(),
+                            className: 'w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed font-medium'
+                          },
+                          React.createElement(LogIn, { className: 'h-5 w-5 mr-2' }),
+                          'Join Existing Room'
+                        )
+                      )
+                    )
+                  ),
+                  // Personal Interview Card
+                  React.createElement(
+                    'div',
+                    { className: 'bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow' },
+                    React.createElement(
+                      'div',
+                      { className: 'flex items-center mb-4' },
+                      React.createElement(User, { className: 'h-8 w-8 text-purple-500 mr-3' }),
+                      React.createElement('h2', { className: 'text-xl font-bold text-gray-800' }, 'Personal Interview')
+                    ),
+                    React.createElement('p', { className: 'text-gray-600 mb-6' }, 'One-on-one AI interview with detailed feedback (30 minutes)'),
+                    React.createElement(
+                      'button',
+                      {
+                        onClick: startPersonalInterview,
+                        className: 'w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition-colors'
+                      },
+                      'Start Interview'
+                    )
+                  )
+                )
+              ),
+              // Room Creation Modal
+              showRoomCreation && React.createElement(
+                'div',
+                { className: 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50' },
+                React.createElement(
+                  'div',
+                  { className: 'bg-white rounded-xl shadow-2xl p-6 w-full max-w-md' },
+                  React.createElement(
+                    'div',
+                    { className: 'flex justify-between items-center mb-6' },
+                    React.createElement('h2', { className: 'text-2xl font-bold text-gray-800' }, 'Create Discussion Room'),
+                    React.c
